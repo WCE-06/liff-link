@@ -1,55 +1,168 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>COMPASSION WORLD 会員リンク</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
-    body{font-family:sans-serif;text-align:center;padding:40px;background:#f5f7fb}
-    .card{max-width:520px;margin:40px auto;background:#fff;border-radius:20px;padding:28px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
-    .badge{display:inline-block;padding:6px 12px;border-radius:999px;background:#eef2ff;color:#4338ca;font-size:12px;margin-bottom:16px}
-    .ok{color:#166534}.ng{color:#b91c1c}
+    :root{
+      --bg:#f6f8fb;
+      --card:#ffffff;
+      --text:#1f2937;
+      --muted:#6b7280;
+      --ok:#16a34a;
+      --line:#e5e7eb;
+      --accent:#4f46e5;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+    }
+    .card{
+      width:100%;
+      max-width:560px;
+      background:var(--card);
+      border-radius:24px;
+      padding:32px 24px;
+      box-shadow:0 12px 32px rgba(0,0,0,.08);
+      text-align:center;
+    }
+    .badge{
+      display:inline-block;
+      font-size:12px;
+      padding:6px 12px;
+      border-radius:999px;
+      background:#eef2ff;
+      color:#4338ca;
+      margin-bottom:18px;
+    }
+    h1{
+      font-size:26px;
+      line-height:1.6;
+      margin:0 0 14px;
+      font-weight:700;
+    }
+    p{
+      margin:0;
+      line-height:1.8;
+      color:var(--muted);
+      font-size:15px;
+    }
+    .spinner{
+      width:52px;
+      height:52px;
+      margin:10px auto 18px;
+      border:4px solid #e5e7eb;
+      border-top-color:var(--accent);
+      border-radius:50%;
+      animation:spin 1s linear infinite;
+    }
+    .success{
+      display:flex;
+      justify-content:center;
+      margin-bottom:18px;
+    }
+    .success-mark{
+      width:72px;
+      height:72px;
+      border-radius:50%;
+      background:#ecfdf3;
+      border:2px solid #bbf7d0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:var(--ok);
+      font-size:38px;
+      font-weight:700;
+    }
+    .hidden{display:none}
+    @keyframes spin{
+      to{transform:rotate(360deg)}
+    }
   </style>
 </head>
 <body>
   <div class="card">
     <div class="badge">COMPASSION WORLD</div>
-    <h2 id="msg">LINE認証を確認しています</h2>
-    <p id="sub">少々お待ちください。</p>
+
+    <div id="phase-loading">
+      <div class="spinner"></div>
+      <h1>通行許可証の有効化を行っています。しばらくお待ちください。</h1>
+      <p>ただいま準備を進めています。</p>
+    </div>
+
+    <div id="phase-success" class="hidden">
+      <div class="success">
+        <div class="success-mark">✓</div>
+      </div>
+      <h1>お待たせしました。通行許可証が使えるようになりました。</h1>
+      <p>どうぞご利用ください。</p>
+    </div>
+
+    <div id="phase-error" class="hidden">
+      <h1 id="errorTitle">連携に失敗しました</h1>
+      <p id="errorText">不明なエラー</p>
+    </div>
   </div>
 
-<script>
-const LIFF_ID = "2008818718-fOO0L9iV";
-const GAS_URL = "https://compassion-world-proxy.combetter27.workers.dev/";
+  <script>
+    const LIFF_ID = "2008818718-fOO0L9iV";
+    const GAS_URL = "https://compassion-world-proxy.combetter27.workers.dev/";
 
     const params = new URLSearchParams(location.search);
     const customerCode = params.get("code");
+
+    const phaseLoading = document.getElementById("phase-loading");
+    const phaseSuccess = document.getElementById("phase-success");
+    const phaseError = document.getElementById("phase-error");
+    const errorTitle = document.getElementById("errorTitle");
+    const errorText = document.getElementById("errorText");
+
+    function showOnly(target) {
+      [phaseLoading, phaseSuccess, phaseError].forEach(el => el.classList.add("hidden"));
+      target.classList.remove("hidden");
+    }
+
+    function wait(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
 
     async function main() {
       try {
         await liff.init({ liffId: LIFF_ID });
 
         if (!liff.isLoggedIn()) {
-          document.getElementById("msg").innerText = "LINEアプリから開いてください";
-          document.getElementById("sub").innerText = "この画面は LIFF URL から開く必要があります。";
+          showOnly(phaseError);
+          errorTitle.textContent = "LINEアプリから開いてください";
+          errorText.textContent = "この画面はLIFF URLから開く必要があります。";
           return;
         }
 
         if (!customerCode) {
-          document.getElementById("msg").innerText = "会員コードがありません";
-          document.getElementById("sub").innerText = "URLに ?code=会員コード を付けてください。";
+          showOnly(phaseError);
+          errorTitle.textContent = "会員コードがありません";
+          errorText.textContent = "URLに ?code=会員コード を付けてください。";
           return;
         }
 
         const idToken = liff.getIDToken();
         if (!idToken) {
-          document.getElementById("msg").innerText = "認証に失敗しました";
-          document.getElementById("sub").innerText = "LIFFアプリの openid スコープを確認してください。";
+          showOnly(phaseError);
+          errorTitle.textContent = "認証に失敗しました";
+          errorText.textContent = "LIFFアプリの openid スコープを確認してください。";
           return;
         }
 
-        const res = await fetch(GAS_URL, {
+        const fetchPromise = fetch(GAS_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -57,23 +170,28 @@ const GAS_URL = "https://compassion-world-proxy.combetter27.workers.dev/";
             idToken: idToken,
             customerCode: customerCode
           })
-        });
+        }).then(r => r.json());
 
-        const data = await res.json();
+        const minLoadingPromise = wait(2200);
+
+        const [data] = await Promise.all([fetchPromise, minLoadingPromise]);
 
         if (data.ok) {
-          document.getElementById("msg").innerText = "LINE連携が完了しました";
-          document.getElementById("sub").innerText = "このLINEアカウントを会員情報に紐づけました。";
+          showOnly(phaseSuccess);
+          await wait(3200);
         } else {
-          document.getElementById("msg").innerText = "連携に失敗しました";
-          document.getElementById("sub").innerText = data.error || "不明なエラー";
+          showOnly(phaseError);
+          errorTitle.textContent = "連携に失敗しました";
+          errorText.textContent = data.error || "不明なエラー";
         }
       } catch (e) {
-        document.getElementById("msg").innerText = "通信エラーが発生しました";
-        document.getElementById("sub").innerText = String(e);
+        showOnly(phaseError);
+        errorTitle.textContent = "通信エラーが発生しました";
+        errorText.textContent = String(e);
       }
     }
 
     main();
   </script>
 </body>
+</html>
