@@ -1,1 +1,80 @@
-# liff-link
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>COMPASSION WORLD 会員リンク</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    body{font-family:sans-serif;text-align:center;padding:40px;background:#f5f7fb}
+    .card{max-width:520px;margin:40px auto;background:#fff;border-radius:20px;padding:28px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
+    .badge{display:inline-block;padding:6px 12px;border-radius:999px;background:#eef2ff;color:#4338ca;font-size:12px;margin-bottom:16px}
+    .ok{color:#166534}.ng{color:#b91c1c}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">COMPASSION WORLD</div>
+    <h2 id="msg">LINE認証を確認しています</h2>
+    <p id="sub">少々お待ちください。</p>
+  </div>
+
+  <script>
+    const LIFF_ID = "2008818718-fOO0L9iV";
+    const GAS_URL = "ここをGASのWebアプリURLに置き換える";
+
+    const params = new URLSearchParams(location.search);
+    const customerCode = params.get("code");
+
+    async function main() {
+      try {
+        await liff.init({ liffId: LIFF_ID });
+
+        if (!liff.isLoggedIn()) {
+          document.getElementById("msg").innerText = "LINEアプリから開いてください";
+          document.getElementById("sub").innerText = "この画面は LIFF URL から開く必要があります。";
+          return;
+        }
+
+        if (!customerCode) {
+          document.getElementById("msg").innerText = "会員コードがありません";
+          document.getElementById("sub").innerText = "URLに ?code=会員コード を付けてください。";
+          return;
+        }
+
+        const idToken = liff.getIDToken();
+        if (!idToken) {
+          document.getElementById("msg").innerText = "認証に失敗しました";
+          document.getElementById("sub").innerText = "LIFFアプリの openid スコープを確認してください。";
+          return;
+        }
+
+        const res = await fetch(GAS_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "link_line",
+            idToken: idToken,
+            customerCode: customerCode
+          })
+        });
+
+        const data = await res.json();
+
+        if (data.ok) {
+          document.getElementById("msg").innerText = "LINE連携が完了しました";
+          document.getElementById("sub").innerText = "このLINEアカウントを会員情報に紐づけました。";
+        } else {
+          document.getElementById("msg").innerText = "連携に失敗しました";
+          document.getElementById("sub").innerText = data.error || "不明なエラー";
+        }
+      } catch (e) {
+        document.getElementById("msg").innerText = "通信エラーが発生しました";
+        document.getElementById("sub").innerText = String(e);
+      }
+    }
+
+    main();
+  </script>
+</body>
+</html>
